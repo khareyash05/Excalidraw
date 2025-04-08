@@ -29,25 +29,46 @@ app.post("/signup", async (req, res) => {
     }
 })
 
-app.post("/signin", (req, res) => {
+app.post("/signin", async (req, res) => {
     const data = SignInSchema.safeParse(req.body);
     if (!data.success) {
         res.status(400).json({ error: data.error });
         return
     }
-    const userId = 1
-    const token = jwt.sign({ userId }, JWT_SECRET);
+
+    const user = await primsaClient.user.findFirst({
+        where:{
+            email:data.data.username,
+            password:data.data.password,
+        }
+    })
+    if (!user) {
+        res.status(401).json({ error: "Invalid credentials" });
+        return
+    }
+
+    const token = jwt.sign({ userId:user.id }, JWT_SECRET);
     res.json({ token });
 })
 
-app.post("/room", middleware,(req, res) => {
+app.post("/room", middleware,async (req, res) => {
  
     const data = CreateRoomSchema.safeParse(req.body);
     if (!data.success) {
         res.status(400).json({ error: data.error });
         return
     }
-    res.json({ roomId: 123 });
+
+    // @ts-ignore
+    const userId = req.userId;
+    const room = await primsaClient.room.create({
+        data:{
+            slug:data.data.name,
+            adminId:userId,
+        }
+    })
+
+    res.json({ roomId: room.id });
 })
 
 app.listen(3001)
